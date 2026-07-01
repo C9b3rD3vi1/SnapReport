@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.md
+node_modules
+web/node_modules
+web/dist
+uploads/
+generated/
+data/

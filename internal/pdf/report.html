@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 0.4in 0.4in 0.6in 0.4in;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #1a1a2e;
+    line-height: 1.6;
+    font-size: 11pt;
+  }
+
+  .cover-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 90vh;
+    text-align: center;
+    page-break-after: always;
+  }
+  .cover-title {
+    font-size: 28pt;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .cover-divider {
+    width: 60px;
+    height: 4px;
+    background: #3b82f6;
+    border-radius: 2px;
+    margin: 16px auto;
+  }
+  .cover-meta {
+    font-size: 11pt;
+    color: #64748b;
+    margin-top: 4px;
+  }
+  .cover-label {
+    font-size: 9pt;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 20px;
+  }
+  .cover-date {
+    font-size: 10pt;
+    color: #94a3b8;
+    margin-top: 32px;
+  }
+
+  .screenshot-page {
+    page-break-after: always;
+    padding-top: 12pt;
+  }
+  .screenshot-image {
+    max-width: 100%;
+    max-height: 65vh;
+    display: block;
+    margin: 0 auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .screenshot-title {
+    font-size: 16pt;
+    font-weight: 600;
+    color: #1a1a2e;
+    margin-top: 16px;
+    margin-bottom: 6px;
+  }
+  .screenshot-description {
+    font-size: 10.5pt;
+    color: #475569;
+    line-height: 1.7;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+  .no-break {
+    page-break-inside: avoid;
+  }
+</style>
+</head>
+<body>
+
+<div class="cover-page">
+  <p class="cover-label">Report</p>
+  <h1 class="cover-title">{{.Title}}</h1>
+  <div class="cover-divider"></div>
+  {{if .Project}}<p class="cover-meta"><strong>Project:</strong> {{.Project}}</p>{{end}}
+  {{if .Company}}<p class="cover-meta"><strong>Company:</strong> {{.Company}}</p>{{end}}
+  {{if .Author}}<p class="cover-meta"><strong>Author:</strong> {{.Author}}</p>{{end}}
+  {{if .Version}}<p class="cover-meta"><strong>Version:</strong> {{.Version}}</p>{{end}}
+  <p class="cover-date">{{.Date}}</p>
+</div>
+
+{{range .Screenshots}}
+<div class="screenshot-page no-break">
+  <img class="screenshot-image" src="{{.ImagePath}}" alt="{{.Title}}">
+  {{if .Title}}<h2 class="screenshot-title">{{.Title}}</h2>{{end}}
+  {{if .Description}}<p class="screenshot-description">{{.Description}}</p>{{end}}
+</div>
+{{end}}
+
+</body>
+</html>
