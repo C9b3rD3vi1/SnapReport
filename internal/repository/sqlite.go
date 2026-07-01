@@ -53,6 +53,11 @@ func (s *SQLite) Migrate() error {
 		title TEXT DEFAULT '',
 		description TEXT DEFAULT '',
 		notes TEXT DEFAULT '',
+		category TEXT DEFAULT '',
+		priority TEXT DEFAULT '',
+		severity TEXT DEFAULT '',
+		status TEXT DEFAULT '',
+		recommendation TEXT DEFAULT '',
 		order_index INTEGER DEFAULT 0,
 		report_id TEXT REFERENCES reports(id) ON DELETE CASCADE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP

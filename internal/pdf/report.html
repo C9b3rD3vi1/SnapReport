@@ -2,120 +2,343 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  @page {
-    size: A4;
-    margin: 0;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    color: #1a1a2e;
-    line-height: 1.6;
-    font-size: 11pt;
+  :root {
+    --accent: #2563eb; --accent-light: #eff6ff;
+    --bg: #ffffff; --text: #0f172a;
+    --text-secondary: #475569; --text-muted: #94a3b8;
+    --border: #e2e8f0; --radius: 6px; --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --font: "Inter", "Segoe UI", system-ui, sans-serif;
+    --critical: #dc2626; --high: #ea580c; --medium: #ca8a04; --low: #16a34a;
+    --pass: #16a34a; --fail: #dc2626; --open: #2563eb; --closed: #16a34a;
+    --card-bg: #ffffff; --card-border: #e2e8f0;
   }
 
-  .cover-page {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-    min-height: 250mm;
-    text-align: center;
-    page-break-after: always;
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font); color: var(--text);
+    line-height: 1.6; font-size: 10pt;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  .cover-title {
-    font-size: 28pt;
-    font-weight: 700;
-    color: #1a1a2e;
-    margin-bottom: 8px;
-    letter-spacing: -0.5px;
-  }
-  .cover-divider {
-    width: 60px;
-    height: 4px;
-    background: #3b82f6;
-    border-radius: 2px;
-    margin: 16px auto;
-  }
-  .cover-meta {
-    font-size: 11pt;
-    color: #64748b;
-    margin-top: 4px;
+
+  /* ─── Typography ─── */
+  .display { font-size: 28pt; font-weight: 800; letter-spacing: -1px; line-height: 1.15; margin-bottom: 8pt; }
+  h1 { font-size: 20pt; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2; margin-bottom: 12pt; }
+  h2 { font-size: 14pt; font-weight: 600; letter-spacing: -0.3px; line-height: 1.3; margin-bottom: 6pt; }
+  h3 { font-size: 11pt; font-weight: 600; line-height: 1.4; margin-bottom: 4pt; color: var(--text); }
+  p  { font-size: 10pt; line-height: 1.65; margin-bottom: 6pt; color: var(--text-secondary); }
+  .caption { font-size: 8pt; color: var(--text-muted); line-height: 1.5; }
+
+  /* ─── Cover Page ─── */
+  .cover {
+    display: flex; flex-direction: column; justify-content: center;
+    min-height: 280mm; page-break-after: always; padding: 0 25mm;
+    position: relative;
   }
   .cover-label {
-    font-size: 9pt;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 20px;
+    font-size: 9pt; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--accent); margin-bottom: 12pt;
   }
-  .cover-date {
-    font-size: 10pt;
-    color: #94a3b8;
-    margin-top: 32px;
+  .cover-title { font-size: 32pt; font-weight: 800; letter-spacing: -1px; margin-bottom: 2pt; }
+  .cover-subtitle { font-size: 14pt; font-weight: 400; color: var(--text-secondary); margin-bottom: 28pt; }
+  .cover-divider { width: 50px; height: 3px; background: var(--accent); border-radius: 2px; margin-bottom: 28pt; }
+  .cover-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6pt 24pt; max-width: 65%; }
+  .cover-meta-label { font-size: 7pt; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+  .cover-meta-value { font-size: 10pt; font-weight: 500; color: var(--text); margin-top: 1pt; }
+  .cover-status { margin-top: 32pt; }
+  .cover-status-badge {
+    display: inline-block; font-size: 8pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; padding: 4pt 14pt; border-radius: 3pt;
   }
-
-  .screenshot-page {
-    page-break-after: always;
-    padding: 10mm 0;
-  }
-  .screenshot-figure {
-    font-size: 9pt;
-    color: #94a3b8;
-    margin-bottom: 4pt;
-    letter-spacing: 0.5px;
-  }
-  .screenshot-image {
-    max-width: 100%;
-    max-height: 180mm;
-    display: block;
-    margin: 0 auto;
-    border: 1px solid #e2e8f0;
-    border-radius: 4px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  }
-  .screenshot-title {
-    font-size: 16pt;
-    font-weight: 600;
-    color: #1a1a2e;
-    margin-top: 12pt;
-    margin-bottom: 4pt;
-  }
-  .screenshot-description {
-    font-size: 10.5pt;
-    color: #475569;
-    line-height: 1.7;
+  .cover-status-badge.draft { background: #fefce8; color: #854d0e; border: 0.5px solid #fef08a; }
+  .cover-status-badge.completed { background: #f0fdf4; color: #166534; border: 0.5px solid #bbf7d0; }
+  .cover-notice {
+    margin-top: 36pt; padding: 10pt 14pt;
+    background: #fef2f2; border: 0.5px solid #fecaca;
+    border-radius: var(--radius); font-size: 8pt; color: #991b1b; max-width: 70%;
   }
 
-  .no-break {
-    page-break-inside: avoid;
+  /* ─── Watermark ─── */
+  .watermark {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-30deg);
+    font-size: 64pt; font-weight: 900; color: rgba(220,38,38,0.06);
+    letter-spacing: 12pt; white-space: nowrap; pointer-events: none;
+    z-index: 999;
   }
+
+  /* ─── Sections ─── */
+  .section { page-break-after: always; padding: 8mm 0; }
+  .section-header { margin-bottom: 18pt; }
+  .section-header h1 { font-size: 18pt; }
+  .section-header p { font-size: 9pt; color: var(--text-muted); margin-bottom: 0; }
+
+  /* ─── Executive Summary ─── */
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10pt; margin-bottom: 20pt; }
+  .summary-card {
+    border: 0.5px solid var(--card-border); border-radius: var(--radius);
+    padding: 14pt; text-align: center; background: var(--card-bg);
+  }
+  .summary-card .number { font-size: 26pt; font-weight: 700; color: var(--accent); line-height: 1; }
+  .summary-card .label { font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-top: 4pt; }
+  .severity-bar { display: flex; gap: 6pt; margin-top: 14pt; }
+  .severity-segment {
+    flex: 1; padding: 6pt 8pt; border-radius: var(--radius);
+    text-align: center; font-size: 8pt; font-weight: 600; color: white;
+  }
+  .severity-critical { background: var(--critical); }
+  .severity-high { background: var(--high); }
+  .severity-medium { background: var(--medium); }
+  .severity-low { background: var(--low); }
+  .summary-meta { margin-top: 16pt; font-size: 9pt; color: var(--text-secondary); line-height: 2; border-top: 0.5px solid var(--border); padding-top: 14pt; }
+
+  /* ─── Table of Contents ─── */
+  .toc { page-break-after: always; padding: 8mm 0; }
+  .toc h1 { font-size: 18pt; margin-bottom: 18pt; }
+  .toc-entry { display: flex; justify-content: space-between; padding: 5pt 0; border-bottom: 0.5px dotted var(--border); font-size: 10pt; }
+  .toc-entry .title { font-weight: 500; }
+  .toc-sub { padding-left: 14pt; font-size: 9pt; color: var(--text-secondary); }
+  .toc-section { margin-top: 8pt; font-weight: 600; color: var(--text); }
+
+  /* ─── Finding Card ─── */
+  .finding {
+    page-break-inside: avoid; page-break-after: always;
+    border: 0.5px solid var(--card-border); border-radius: var(--radius);
+    padding: 16pt 18pt; margin-bottom: 14pt; background: var(--card-bg);
+    box-shadow: var(--shadow);
+  }
+  .finding:last-child { page-break-after: avoid; }
+
+  .finding-head { display: flex; align-items: flex-start; gap: 10pt; margin-bottom: 10pt; }
+  .finding-num {
+    font-size: 9pt; font-weight: 700; color: var(--accent);
+    background: var(--accent-light); padding: 3pt 10pt; border-radius: 4pt;
+    white-space: nowrap; line-height: 1.4;
+  }
+  .finding-title { font-size: 14pt; font-weight: 600; flex: 1; line-height: 1.3; margin-bottom: 0; }
+
+  .finding-badges { display: flex; gap: 5pt; flex-wrap: wrap; margin-bottom: 12pt; }
+
+  .badge {
+    display: inline-block; font-size: 7pt; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px; padding: 2pt 8pt; border-radius: 3pt;
+    line-height: 1.5; border: 0.5px solid;
+  }
+  .badge-category { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+  .badge-critical, .badge-fail { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+  .badge-high { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+  .badge-medium { background: #fefce8; color: #854d0e; border-color: #fef08a; }
+  .badge-low, .badge-pass, .badge-closed, .badge-resolved { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+  .badge-open { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
+
+  /* ─── Image Frame ─── */
+  .image-frame {
+    max-width: 100%; max-height: 160mm; display: block; margin: 10pt auto;
+    border: 0.5px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 4pt; background: #fafafa;
+  }
+  .image-frame img { max-width: 100%; max-height: 152mm; display: block; margin: 0 auto; }
+
+  /* ─── Description Card ─── */
+  .desc-card {
+    margin-top: 10pt; padding: 10pt 12pt;
+    background: #f8fafc; border-radius: var(--radius);
+    border: 0.5px solid var(--card-border);
+  }
+  .desc-card h3 { font-size: 8pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 4pt; }
+  .desc-card p { font-size: 9.5pt; margin-bottom: 0; }
+
+  /* ─── Recommendation Card ─── */
+  .rec-card {
+    margin-top: 10pt; padding: 12pt 14pt;
+    border-left: 3px solid var(--accent);
+    background: #f8fafc; border-radius: 0 var(--radius) var(--radius) 0;
+  }
+  .rec-card h3 { font-size: 8pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 3pt; }
+  .rec-card p { font-size: 9.5pt; margin-bottom: 0; color: var(--text-secondary); }
+
+  /* ─── Statistics Page ─── */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; }
+  .stat-card {
+    border: 0.5px solid var(--card-border); border-radius: var(--radius);
+    padding: 12pt 14pt; background: var(--card-bg);
+  }
+  .stat-card h3 { font-size: 7.5pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 3pt; }
+  .stat-card p { font-size: 14pt; font-weight: 700; color: var(--text); margin-bottom: 0; }
+  .stat-card.full { grid-column: 1 / -1; }
+  .stat-card .stat-row { font-size: 9pt; color: var(--text-secondary); line-height: 1.8; }
+
+  /* ─── Utilities ─── */
+  .page-break { page-break-before: always; }
+  .no-break { page-break-inside: avoid; }
 </style>
 </head>
 <body>
 
-<div class="cover-page">
-  <p class="cover-label">Report</p>
+{{if .Watermark}}<div class="watermark">{{.Watermark}}</div>{{end}}
+
+<!-- ═══════ COVER PAGE ═══════ -->
+<div class="cover">
+  <p class="cover-label">Technical Report</p>
   <h1 class="cover-title">{{.Title}}</h1>
+  {{if .Project}}<p class="cover-subtitle">{{.Project}}</p>{{end}}
   <div class="cover-divider"></div>
-  {{if .Project}}<p class="cover-meta"><strong>Project:</strong> {{.Project}}</p>{{end}}
-  {{if .Company}}<p class="cover-meta"><strong>Company:</strong> {{.Company}}</p>{{end}}
-  {{if .Author}}<p class="cover-meta"><strong>Author:</strong> {{.Author}}</p>{{end}}
-  {{if .Version}}<p class="cover-meta"><strong>Version:</strong> {{.Version}}</p>{{end}}
-  <p class="cover-date">{{.Date}}</p>
+
+  <div class="cover-meta">
+    <div><p class="cover-meta-label">Prepared By</p><p class="cover-meta-value">{{if .Author}}{{.Author}}{{else}}Not specified{{end}}</p></div>
+    <div><p class="cover-meta-label">Company</p><p class="cover-meta-value">{{if .Company}}{{.Company}}{{else}}Not specified{{end}}</p></div>
+    <div><p class="cover-meta-label">Document Version</p><p class="cover-meta-value">{{if .Version}}v{{.Version}}{{else}}1.0{{end}}</p></div>
+    <div><p class="cover-meta-label">Classification</p><p class="cover-meta-value">{{if .Classification}}{{.Classification}}{{else}}Internal{{end}}</p></div>
+    <div><p class="cover-meta-label">Report ID</p><p class="cover-meta-value">{{.ReportID}}</p></div>
+    <div><p class="cover-meta-label">Generated</p><p class="cover-meta-value">{{.Date}}</p></div>
+  </div>
+
+  {{if .Status}}
+  <div class="cover-status">
+    <span class="cover-status-badge {{.Status}}">{{.Status}}</span>
+  </div>
+  {{end}}
+
+  <div class="cover-notice">
+    <strong>Confidentiality Notice:</strong> This document contains confidential information intended solely for the named recipient. Unauthorized distribution, copying, or disclosure is prohibited.
+  </div>
 </div>
 
-{{range .Screenshots}}
-<div class="screenshot-page no-break">
-  <p class="screenshot-figure">{{.FigureLabel}}</p>
-  <img class="screenshot-image" src="{{.ImagePath}}" alt="{{.Title}}">
-  {{if .Title}}<h2 class="screenshot-title">{{.Title}}</h2>{{end}}
-  {{if .Description}}<p class="screenshot-description">{{.Description}}</p>{{end}}
+<!-- ═══════ EXECUTIVE SUMMARY ═══════ -->
+<div class="section">
+  <div class="section-header">
+    <h1>Executive Summary</h1>
+    <p>Overview of findings and report statistics</p>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <p class="number">{{.Summary.TotalFindings}}</p>
+      <p class="label">{{if eq .Summary.TotalFindings 1}}Finding{{else}}Findings{{end}}</p>
+    </div>
+    <div class="summary-card">
+      <p class="number">{{.Summary.TotalImages}}</p>
+      <p class="label">{{if eq .Summary.TotalImages 1}}Screenshot{{else}}Screenshots{{end}}</p>
+    </div>
+    <div class="summary-card">
+      <p class="number">{{.Summary.TotalFindings}}</p>
+      <p class="label">{{if eq .Summary.TotalFindings 1}}Page{{else}}Pages{{end}}</p>
+    </div>
+  </div>
+
+  {{if or (gt .Summary.HighCount 0) (gt .Summary.MediumCount 0) (gt .Summary.LowCount 0)}}
+  <div class="severity-bar">
+    {{if gt .Summary.HighCount 0}}<div class="severity-segment severity-high">{{.Summary.HighCount}} High</div>{{end}}
+    {{if gt .Summary.MediumCount 0}}<div class="severity-segment severity-medium">{{.Summary.MediumCount}} Medium</div>{{end}}
+    {{if gt .Summary.LowCount 0}}<div class="severity-segment severity-low">{{.Summary.LowCount}} Low</div>{{end}}
+  </div>
+  {{else if .Summary.HasRecommendations}}
+  <div class="severity-bar">
+    <div class="severity-segment severity-low" style="background:#94a3b8;">{{.Summary.TotalFindings}} Total</div>
+  </div>
+  {{end}}
+
+  <div class="summary-meta">
+    <strong>Project:</strong> {{if .Project}}{{.Project}}{{else}}Not specified{{end}}<br>
+    <strong>Prepared by:</strong> {{if .Author}}{{.Author}}{{else}}Not specified{{end}}<br>
+    <strong>Document version:</strong> {{if .Version}}v{{.Version}}{{else}}1.0{{end}}<br>
+    <strong>Generated:</strong> {{.Date}}<br>
+    <strong>Estimated reading time:</strong> {{.Summary.ReadingTime}}
+  </div>
 </div>
-{{end}}
+
+<!-- ═══════ TABLE OF CONTENTS ═══════ -->
+<div class="toc">
+  <h1>Contents</h1>
+  <div class="toc-entry"><span class="title">Executive Summary</span></div>
+  <div class="toc-entry toc-section"><span class="title">Findings</span></div>
+  {{range $i, $s := .Screenshots}}
+  {{$tocTitle := $s.Title}}{{if not $tocTitle}}{{$tocTitle = printf "Finding %d" (add $i 1)}}{{end}}
+  <div class="toc-sub toc-entry">
+    <span class="title">Finding {{add $i 1 | printf "%02d"}}: {{$tocTitle}}</span>
+  </div>
+  {{end}}
+  <div class="toc-entry toc-section" style="margin-top:8pt;"><span class="title">Report Statistics</span></div>
+</div>
+
+<!-- ═══════ FINDINGS ═══════ -->
+<div class="section">
+  <div class="section-header">
+    <h1>Findings</h1>
+    <p>{{.Summary.TotalFindings}} finding{{if ne .Summary.TotalFindings 1}}s{{end}} documented below</p>
+  </div>
+
+  {{range $i, $s := .Screenshots}}
+  {{$title := $s.Title}}{{if not $title}}{{$title = printf "Finding %d" (add $i 1)}}{{end}}
+  <div class="finding">
+    <div class="finding-head">
+      <span class="finding-num">Finding {{add $i 1 | printf "%02d"}}</span>
+      <h2 class="finding-title">{{$title}}</h2>
+    </div>
+
+    <div class="finding-badges">
+      {{if $s.Category}}<span class="badge badge-category">{{$s.Category}}</span>{{end}}
+      {{if $s.Priority}}<span class="badge badge-{{$s.Priority | lower}}">{{$s.Priority}}</span>{{end}}
+      {{if $s.Severity}}<span class="badge badge-{{$s.Severity | lower}}">{{$s.Severity}}</span>{{end}}
+      {{if $s.Status}}<span class="badge badge-{{$s.Status | lower}}">{{$s.Status}}</span>{{end}}
+    </div>
+
+    <div class="image-frame">
+      <img src="{{$s.ImagePath}}" alt="{{$title}}">
+    </div>
+
+    {{if $s.Description}}
+    <div class="desc-card">
+      <h3>Description</h3>
+      <p>{{$s.Description}}</p>
+    </div>
+    {{end}}
+
+    {{if $s.Recommendation}}
+    <div class="rec-card">
+      <h3>Recommendation</h3>
+      <p>{{$s.Recommendation}}</p>
+    </div>
+    {{end}}
+  </div>
+  {{end}}
+</div>
+
+<!-- ═══════ REPORT STATISTICS ═══════ -->
+<div class="section">
+  <div class="section-header">
+    <h1>Report Statistics</h1>
+    <p>Summary of report composition</p>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Total Findings</h3>
+      <p>{{.Summary.TotalFindings}}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Screenshots</h3>
+      <p>{{.Summary.TotalImages}}</p>
+    </div>
+    {{if .Summary.Categories}}
+    <div class="stat-card full">
+      <h3>Categories</h3>
+      <p>{{join .Summary.Categories ", "}}</p>
+    </div>
+    {{end}}
+    <div class="stat-card full">
+      <h3>Document Information</h3>
+      <div class="stat-row">
+        Report ID: {{.ReportID}}<br>
+        Generated: {{.Date}}<br>
+        Version: {{if .Version}}v{{.Version}}{{else}}1.0{{end}}<br>
+        Classification: {{if .Classification}}{{.Classification}}{{else}}Internal{{end}}<br>
+        Reading time: {{.Summary.ReadingTime}}
+      </div>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

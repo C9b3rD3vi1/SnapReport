@@ -7,7 +7,7 @@ type UploadRepo interface {
 	FindAll() ([]models.Upload, error)
 	FindByID(string) (*models.Upload, error)
 	FindByReportID(string) ([]models.Upload, error)
-	UpdateMetadata(id, title, description, notes string, orderIndex int, reportID string) error
+	UpdateMetadata(id, title, description, notes, category, priority, severity, status, recommendation string, orderIndex int, reportID string) error
 	Delete(id string) error
 }
 

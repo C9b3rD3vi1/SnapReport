@@ -38,11 +38,16 @@ type CreateRequest struct {
 }
 
 type UploadMetadataInput struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Notes       string `json:"notes"`
-	OrderIndex  int    `json:"order_index"`
+	ID             string `json:"id"`
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	Notes          string `json:"notes"`
+	OrderIndex     int    `json:"order_index"`
+	Category       string `json:"category"`
+	Priority       string `json:"priority"`
+	Severity       string `json:"severity"`
+	Status         string `json:"status"`
+	Recommendation string `json:"recommendation"`
 }
 
 func (s *Service) Create(req CreateRequest) (*models.Report, error) {
@@ -73,7 +78,9 @@ func (s *Service) Create(req CreateRequest) (*models.Report, error) {
 	}
 
 	for _, u := range req.Uploads {
-		if err := s.uploadRepo.UpdateMetadata(u.ID, u.Title, u.Description, u.Notes, u.OrderIndex, id); err != nil {
+		if err := s.uploadRepo.UpdateMetadata(u.ID, u.Title, u.Description, u.Notes,
+			u.Category, u.Priority, u.Severity, u.Status, u.Recommendation,
+			u.OrderIndex, id); err != nil {
 			return nil, fmt.Errorf("update upload metadata: %w", err)
 		}
 	}
@@ -99,13 +106,59 @@ func (s *Service) Create(req CreateRequest) (*models.Report, error) {
 }
 
 func (s *Service) generatePDF(report *models.Report, uploads []models.Upload) error {
+	high, med, low := 0, 0, 0
+	catSet := map[string]bool{}
+	hasRecs := false
+
+	for _, u := range uploads {
+		switch u.Priority {
+		case "High", "Critical":
+			high++
+		case "Medium":
+			med++
+		case "Low":
+			low++
+		}
+		if u.Category != "" {
+			catSet[u.Category] = true
+		}
+		if u.Recommendation != "" {
+			hasRecs = true
+		}
+	}
+
+	var cats []string
+	for c := range catSet {
+		cats = append(cats, c)
+	}
+	if cats == nil {
+		cats = []string{}
+	}
+
+	totalFindings := len(uploads)
+	readingTime := fmt.Sprintf("%d min", max(1, (totalFindings+2)/2))
+
 	data := pdf.ReportData{
-		Title:   report.Title,
-		Project: report.Project,
-		Company: report.Company,
-		Author:  report.Author,
-		Version: report.Version,
-		Date:    report.CreatedAt.Format("January 2, 2006"),
+		Title:          report.Title,
+		Project:        report.Project,
+		Company:        report.Company,
+		Author:         report.Author,
+		Version:        report.Version,
+		Date:           report.CreatedAt.Format("January 2, 2006"),
+		Classification: "Internal",
+		ReportID:       report.ID[:8],
+		Status:         report.Status,
+		Watermark:      "",
+		Summary: pdf.SummaryData{
+			TotalFindings:      totalFindings,
+			TotalImages:        totalFindings,
+			HighCount:          high,
+			MediumCount:        med,
+			LowCount:           low,
+			Categories:         cats,
+			ReadingTime:        readingTime,
+			HasRecommendations: hasRecs,
+		},
 	}
 
 	for i, u := range uploads {
@@ -114,10 +167,15 @@ func (s *Service) generatePDF(report *models.Report, uploads []models.Upload) er
 			caption = fmt.Sprintf("Figure %d: %s", i+1, u.Title)
 		}
 		data.Screenshots = append(data.Screenshots, pdf.ScreenshotData{
-			ImagePath:   u.Path,
-			Title:       u.Title,
-			Description: u.Description,
-			FigureLabel: caption,
+			ImagePath:      u.Path,
+			Title:          u.Title,
+			Description:    u.Description,
+			FigureLabel:    caption,
+			Category:       u.Category,
+			Priority:       u.Priority,
+			Severity:       u.Severity,
+			Status:         u.Status,
+			Recommendation: u.Recommendation,
 		})
 	}
 

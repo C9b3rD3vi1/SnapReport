@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/chromedp/cdproto/page"
@@ -19,20 +20,42 @@ import (
 var templateContent string
 
 type ReportData struct {
-	Title       string
-	Project     string
-	Company     string
-	Author      string
-	Version     string
-	Date        string
+	Title          string
+	Project        string
+	Company        string
+	Author         string
+	Version        string
+	Date           string
+	Classification string
+	ReportID       string
+	Status         string
+	Watermark      string
+
 	Screenshots []ScreenshotData
+	Summary     SummaryData
 }
 
 type ScreenshotData struct {
-	ImagePath   string
-	Title       string
-	Description string
-	FigureLabel string
+	ImagePath      string
+	Title          string
+	Description    string
+	FigureLabel    string
+	Category       string
+	Priority       string
+	Severity       string
+	Status         string
+	Recommendation string
+}
+
+type SummaryData struct {
+	TotalFindings   int
+	TotalImages     int
+	HighCount       int
+	MediumCount     int
+	LowCount        int
+	Categories      []string
+	ReadingTime     string
+	HasRecommendations bool
 }
 
 type Generator struct {
@@ -41,7 +64,13 @@ type Generator struct {
 }
 
 func NewGenerator() (*Generator, error) {
-	tmpl, err := template.New("report").Parse(templateContent)
+	funcMap := template.FuncMap{
+		"add":   func(a, b int) int { return a + b },
+		"join":  func(elems []string, sep string) string { return strings.Join(elems, sep) },
+		"lower": func(s string) string { return strings.ToLower(s) },
+		"seq":   func(n int) []int { s := make([]int, n); for i := range s { s[i] = i + 1 }; return s },
+	}
+	tmpl, err := template.New("report").Funcs(funcMap).Parse(templateContent)
 	if err != nil {
 		return nil, fmt.Errorf("parse report template: %w", err)
 	}
@@ -104,11 +133,16 @@ func (g *Generator) Generate(data ReportData, outputPath string) error {
 				WithMarginLeft(0.4).
 				WithMarginRight(0.4).
 				WithDisplayHeaderFooter(true).
-				WithHeaderTemplate(fmt.Sprintf(
-					`<div style="font-size:8pt;color:#94a3b8;width:100%%;text-align:center;padding:0 20px;">%s</div>`,
-					template.HTMLEscapeString(data.Title),
-				)).
-				WithFooterTemplate(`<div style="font-size:8pt;color:#94a3b8;width:100%;text-align:center;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>`).
+				WithHeaderTemplate(`<div style="font-size:7.5pt;color:#94a3b8;width:100%;text-align:center;padding:0 25px;border-bottom:0.5px solid #e2e8f0;padding-bottom:4pt;">
+					<span style="float:left;">`+template.HTMLEscapeString(data.Company)+`</span>
+					<span>`+template.HTMLEscapeString(data.Classification)+`</span>
+					<span style="float:right;">`+template.HTMLEscapeString(data.Project)+`</span>
+				</div>`).
+				WithFooterTemplate(`<div style="font-size:7.5pt;color:#94a3b8;width:100%;text-align:center;border-top:0.5px solid #e2e8f0;padding-top:4pt;">
+					<span style="float:left;">`+template.HTMLEscapeString(data.Title)+`</span>
+					<span class="pageNumber"></span> / <span class="totalPages"></span>
+					<span style="float:right;">v`+template.HTMLEscapeString(data.Version)+`</span>
+				</div>`).
 				Do(ctx)
 			return err
 		}),
