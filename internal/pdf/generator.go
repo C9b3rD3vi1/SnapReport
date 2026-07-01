@@ -32,6 +32,7 @@ type ScreenshotData struct {
 	ImagePath   string
 	Title       string
 	Description string
+	FigureLabel string
 }
 
 type Generator struct {

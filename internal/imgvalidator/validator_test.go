@@ -1,4 +1,4 @@
-package image
+package imgvalidator
 
 import "testing"
 
@@ -9,42 +9,12 @@ func TestValidateMIME(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{
-			name:    "png",
-			header:  []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A},
-			want:    "image/png",
-			wantErr: false,
-		},
-		{
-			name:    "jpeg",
-			header:  []byte{0xFF, 0xD8, 0xFF, 0xE0},
-			want:    "image/jpeg",
-			wantErr: false,
-		},
-		{
-			name:    "webp",
-			header:  []byte{0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50},
-			want:    "image/webp",
-			wantErr: false,
-		},
-		{
-			name:    "empty header",
-			header:  []byte{},
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "gif rejected",
-			header:  []byte{0x47, 0x49, 0x46, 0x38},
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "pdf rejected",
-			header:  []byte{0x25, 0x50, 0x44, 0x46},
-			want:    "",
-			wantErr: true,
-		},
+		{"png", []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}, "image/png", false},
+		{"jpeg", []byte{0xFF, 0xD8, 0xFF, 0xE0}, "image/jpeg", false},
+		{"webp", []byte{0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50}, "image/webp", false},
+		{"empty", []byte{}, "", true},
+		{"gif rejected", []byte{0x47, 0x49, 0x46, 0x38}, "", true},
+		{"pdf rejected", []byte{0x25, 0x50, 0x44, 0x46}, "", true},
 	}
 
 	for _, tt := range tests {
@@ -72,7 +42,6 @@ func TestAllowedExtension(t *testing.T) {
 		{"image/gif", ""},
 		{"", ""},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.mime, func(t *testing.T) {
 			if got := AllowedExtension(tt.mime); got != tt.want {

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/anomalyco/SnapReport/internal/repository"
+	"github.com/C9b3rD3vi1/SnapReport/internal/repository"
 )
 
 func setupTest(t *testing.T) *Service {

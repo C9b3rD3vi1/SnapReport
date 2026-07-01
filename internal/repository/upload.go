@@ -3,7 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
-	"github.com/anomalyco/SnapReport/internal/models"
+	"github.com/C9b3rD3vi1/SnapReport/internal/models"
 )
 
 type UploadRepository struct {

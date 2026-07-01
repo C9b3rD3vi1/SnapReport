@@ -6,22 +6,23 @@ import (
 	"io"
 	"log/slog"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/anomalyco/SnapReport/internal/models"
-	"github.com/anomalyco/SnapReport/internal/repository"
-	imgvalidator "github.com/anomalyco/SnapReport/internal/services/image"
-	"github.com/anomalyco/SnapReport/internal/utils"
+	"github.com/C9b3rD3vi1/SnapReport/internal/fileutil"
+	"github.com/C9b3rD3vi1/SnapReport/internal/imgvalidator"
+	"github.com/C9b3rD3vi1/SnapReport/internal/models"
+	"github.com/C9b3rD3vi1/SnapReport/internal/service"
 )
 
 type UploadService struct {
-	repo      *repository.UploadRepository
+	repo      service.UploadRepo
 	uploadDir string
 	maxSize   int64
 }
 
-func NewUploadService(repo *repository.UploadRepository, uploadDir string, maxSizeMB int64) *UploadService {
+func NewUploadService(repo service.UploadRepo, uploadDir string, maxSizeMB int64) *UploadService {
 	return &UploadService{
 		repo:      repo,
 		uploadDir: uploadDir,
@@ -29,34 +30,39 @@ func NewUploadService(repo *repository.UploadRepository, uploadDir string, maxSi
 	}
 }
 
-func (s *UploadService) Create(files []*multipart.FileHeader) ([]models.Upload, error) {
+type uploadError struct {
+	Filename string
+	Err      error
+}
+
+func (s *UploadService) Create(files []*multipart.FileHeader) ([]models.Upload, []uploadError) {
 	var uploads []models.Upload
+	var errors []uploadError
 
 	for _, fh := range files {
 		if fh.Size > s.maxSize {
-			return nil, fmt.Errorf("file %s exceeds maximum size of %d MB", fh.Filename, s.maxSize/(1024*1024))
+			errors = append(errors, uploadError{Filename: fh.Filename, Err: service.ErrFileTooLarge})
+			continue
 		}
 
 		src, err := fh.Open()
 		if err != nil {
-			return nil, fmt.Errorf("open file %s: %w", fh.Filename, err)
+			errors = append(errors, uploadError{Filename: fh.Filename, Err: fmt.Errorf("open: %w", err)})
+			continue
 		}
 
 		header := make([]byte, 512)
-		n, err := io.ReadFull(src, header)
-		if err != nil && err != io.ErrUnexpectedEOF {
-			src.Close()
-			return nil, fmt.Errorf("read file header: %w", err)
-		}
+		n, _ := io.ReadFull(src, header)
 		header = header[:n]
 
 		mime, err := imgvalidator.ValidateMIME(header)
 		if err != nil {
 			src.Close()
-			return nil, fmt.Errorf("file %s: %w", fh.Filename, err)
+			errors = append(errors, uploadError{Filename: fh.Filename, Err: service.ErrInvalidFile})
+			continue
 		}
 
-		id := utils.GenerateID()
+		id := fileutil.GenerateID()
 		ext := filepath.Ext(fh.Filename)
 		if e := imgvalidator.AllowedExtension(mime); e != "" {
 			ext = e
@@ -65,10 +71,17 @@ func (s *UploadService) Create(files []*multipart.FileHeader) ([]models.Upload, 
 
 		reader := io.MultiReader(bytes.NewReader(header), src)
 
-		path, err := utils.SaveFile(s.uploadDir, filename, reader)
+		path, err := fileutil.Save(s.uploadDir, filename, reader)
 		src.Close()
 		if err != nil {
-			return nil, fmt.Errorf("save file %s: %w", filename, err)
+			errors = append(errors, uploadError{Filename: fh.Filename, Err: fmt.Errorf("save: %w", err)})
+			continue
+		}
+
+		thumbDir := filepath.Join(s.uploadDir, "thumbnails")
+		os.MkdirAll(thumbDir, 0755)
+		if _, thumbErr := GenerateThumbnail(path, thumbDir); thumbErr != nil {
+			slog.Warn("thumbnail generation failed", "file", filename, "error", thumbErr)
 		}
 
 		upload := models.Upload{
@@ -80,17 +93,19 @@ func (s *UploadService) Create(files []*multipart.FileHeader) ([]models.Upload, 
 			Path:         path,
 			CreatedAt:    time.Now(),
 		}
+		upload.SetThumbnailURL()
 
 		if err := s.repo.Insert(&upload); err != nil {
-			utils.RemoveFile(path)
-			return nil, fmt.Errorf("save upload record: %w", err)
+			fileutil.Remove(path)
+			errors = append(errors, uploadError{Filename: fh.Filename, Err: fmt.Errorf("db: %w", err)})
+			continue
 		}
 
 		uploads = append(uploads, upload)
 		slog.Info("file uploaded", "id", upload.ID, "filename", upload.OriginalName, "size", upload.Size)
 	}
 
-	return uploads, nil
+	return uploads, errors
 }
 
 func (s *UploadService) List() ([]models.Upload, error) {
@@ -101,6 +116,9 @@ func (s *UploadService) List() ([]models.Upload, error) {
 	if uploads == nil {
 		uploads = []models.Upload{}
 	}
+	for i := range uploads {
+		uploads[i].SetThumbnailURL()
+	}
 	return uploads, nil
 }
 
@@ -110,13 +128,12 @@ func (s *UploadService) Delete(id string) error {
 		return fmt.Errorf("find upload: %w", err)
 	}
 	if upload == nil {
-		return fmt.Errorf("upload not found")
+		return service.ErrNotFound
 	}
 
-	if err := utils.RemoveFile(upload.Path); err != nil {
+	if err := fileutil.Remove(upload.Path); err != nil {
 		slog.Warn("failed to remove file", "path", upload.Path, "error", err)
 	}
-
 	if err := s.repo.Delete(id); err != nil {
 		return fmt.Errorf("delete upload record: %w", err)
 	}

@@ -5,8 +5,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
-	"github.com/anomalyco/SnapReport/internal/handlers"
-	"github.com/anomalyco/SnapReport/internal/middleware"
+	"github.com/C9b3rD3vi1/SnapReport/internal/handlers"
+	"github.com/C9b3rD3vi1/SnapReport/internal/middleware"
 )
 
 type Handlers struct {
@@ -14,14 +14,16 @@ type Handlers struct {
 	Report *handlers.ReportHandler
 }
 
-func NewRouter(h *Handlers, uploadDir string) *chi.Mux {
+func NewRouter(h *Handlers, uploadDir string, allowedOrigins []string, rl *middleware.RateLimiter) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(middleware.Logging)
 	r.Use(chimw.Recoverer)
-	r.Use(middleware.CORS)
+	r.Use(middleware.CORS(allowedOrigins))
+	r.Use(middleware.SecurityHeaders)
+	r.Use(rl.Middleware)
 
 	r.Get("/health", handlers.HealthCheck)
 
@@ -36,9 +38,11 @@ func NewRouter(h *Handlers, uploadDir string) *chi.Mux {
 		})
 
 		r.Route("/reports", func(r chi.Router) {
+			r.Get("/", h.Report.List)
 			r.Post("/", h.Report.Create)
 			r.Get("/{id}", h.Report.Get)
 			r.Get("/{id}/download", h.Report.Download)
+			r.Delete("/{id}", h.Report.Delete)
 		})
 	})
 

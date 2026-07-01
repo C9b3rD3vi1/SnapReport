@@ -66,3 +66,18 @@ export async function getReport(id: string): Promise<{
   }
   return res.data.data;
 }
+
+export async function listReports(): Promise<Report[]> {
+  const res = await client.get<ApiResponse<Report[]>>("/reports");
+  if (!res.data.success || !res.data.data) {
+    throw new Error(res.data.error ?? "Failed to list reports");
+  }
+  return res.data.data;
+}
+
+export async function deleteReport(id: string): Promise<void> {
+  const res = await client.delete<ApiResponse<null>>(`/reports/${id}`);
+  if (!res.data.success) {
+    throw new Error(res.data.error ?? "Failed to delete report");
+  }
+}

@@ -9,9 +9,10 @@ import type { ReportInfo, Report } from "@/types/report";
 
 interface ReportEditorPageProps {
   onBack: () => void;
+  onViewReport: (id: string) => void;
 }
 
-export function ReportEditorPage({ onBack }: ReportEditorPageProps) {
+export function ReportEditorPage({ onBack, onViewReport }: ReportEditorPageProps) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [reportInfo, setReportInfo] = useState<ReportInfo>({
     title: "",
@@ -104,14 +105,10 @@ export function ReportEditorPage({ onBack }: ReportEditorPageProps) {
           <Button variant="outline" onClick={onBack}>
             Back to Uploads
           </Button>
-          {result.status === "completed" && (
-            <Button asChild>
-              <a href={`/api/v1/reports/${result.id}/download`} download>
-                <Download className="h-4 w-4 mr-2" />
-                Download PDF
-              </a>
-            </Button>
-          )}
+          <Button onClick={() => onViewReport(result.id)}>
+            <FileText className="h-4 w-4 mr-2" />
+            View Report
+          </Button>
         </div>
       </div>
     );

@@ -6,20 +6,20 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/anomalyco/SnapReport/internal/models"
-	"github.com/anomalyco/SnapReport/internal/pdf"
-	"github.com/anomalyco/SnapReport/internal/repository"
-	"github.com/anomalyco/SnapReport/internal/utils"
+	"github.com/C9b3rD3vi1/SnapReport/internal/fileutil"
+	"github.com/C9b3rD3vi1/SnapReport/internal/models"
+	"github.com/C9b3rD3vi1/SnapReport/internal/pdf"
+	"github.com/C9b3rD3vi1/SnapReport/internal/service"
 )
 
 type Service struct {
-	reportRepo *repository.ReportRepository
-	uploadRepo *repository.UploadRepository
+	reportRepo service.ReportRepo
+	uploadRepo service.UploadRepo
 	pdfGen     *pdf.Generator
 	pdfDir     string
 }
 
-func NewService(reportRepo *repository.ReportRepository, uploadRepo *repository.UploadRepository, pdfGen *pdf.Generator, pdfDir string) *Service {
+func NewService(reportRepo service.ReportRepo, uploadRepo service.UploadRepo, pdfGen *pdf.Generator, pdfDir string) *Service {
 	return &Service{
 		reportRepo: reportRepo,
 		uploadRepo: uploadRepo,
@@ -47,13 +47,13 @@ type UploadMetadataInput struct {
 
 func (s *Service) Create(req CreateRequest) (*models.Report, error) {
 	if req.Title == "" {
-		return nil, fmt.Errorf("report title is required")
+		return nil, service.ErrTitleMissing
 	}
 	if len(req.Uploads) == 0 {
-		return nil, fmt.Errorf("at least one upload is required")
+		return nil, service.ErrNoUploads
 	}
 
-	id := utils.GenerateID()
+	id := fileutil.GenerateID()
 	now := time.Now()
 
 	report := &models.Report{
@@ -108,11 +108,16 @@ func (s *Service) generatePDF(report *models.Report, uploads []models.Upload) er
 		Date:    report.CreatedAt.Format("January 2, 2006"),
 	}
 
-	for _, u := range uploads {
+	for i, u := range uploads {
+		caption := fmt.Sprintf("Figure %d", i+1)
+		if u.Title != "" {
+			caption = fmt.Sprintf("Figure %d: %s", i+1, u.Title)
+		}
 		data.Screenshots = append(data.Screenshots, pdf.ScreenshotData{
 			ImagePath:   u.Path,
 			Title:       u.Title,
 			Description: u.Description,
+			FigureLabel: caption,
 		})
 	}
 
@@ -132,19 +137,46 @@ func (s *Service) generatePDF(report *models.Report, uploads []models.Upload) er
 	return nil
 }
 
+func (s *Service) List() ([]models.Report, error) {
+	reports, err := s.reportRepo.FindAll()
+	if err != nil {
+		return nil, fmt.Errorf("list reports: %w", err)
+	}
+	if reports == nil {
+		reports = []models.Report{}
+	}
+	return reports, nil
+}
+
+func (s *Service) Delete(id string) error {
+	report, err := s.reportRepo.FindByID(id)
+	if err != nil {
+		return fmt.Errorf("find report: %w", err)
+	}
+	if report == nil {
+		return service.ErrNotFound
+	}
+	if report.PDFPath != "" {
+		fileutil.Remove(report.PDFPath)
+	}
+	return s.reportRepo.Delete(id)
+}
+
 func (s *Service) Get(id string) (*models.Report, []models.Upload, error) {
 	report, err := s.reportRepo.FindByID(id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("find report: %w", err)
 	}
 	if report == nil {
-		return nil, nil, fmt.Errorf("report not found")
+		return nil, nil, service.ErrNotFound
 	}
 
 	uploads, err := s.uploadRepo.FindByReportID(id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("find report uploads: %w", err)
 	}
-
+	for i := range uploads {
+		uploads[i].SetThumbnailURL()
+	}
 	return report, uploads, nil
 }

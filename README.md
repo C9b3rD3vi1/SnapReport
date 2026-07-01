@@ -1,65 +1,39 @@
 # SnapReport
 
-Convert screenshots into professional PDF reports.
+**Technical Report Builder** — Turn screenshots into professional PDF reports.
 
 ## Tech Stack
 
 - **Frontend:** React, TypeScript, Vite, TailwindCSS, shadcn/ui
-- **Backend:** Go 1.24+, Chi Router, SQLite
-- **PDF:** HTML + CSS → Headless Chromium (via chromedp)
+- **Backend:** Go 1.26+, Chi Router, SQLite
+- **PDF:** HTML + CSS → Headless Chromium (chromedp)
 
-## Development
-
-### Prerequisites
-
-- Go 1.24+
-- Node.js 22+
-- Chromium (for PDF generation)
-
-### Backend
+## Quick Start
 
 ```bash
-make run
+# Backend
+make run                          # Starts on :8080
+
+# Frontend (separate terminal)
+cd web && npm run dev             # Starts on :5173 with API proxy
+
+# Docker
+make docker-up                    # Production build
 ```
 
-Server starts on `http://localhost:8080`.
+## Features
 
-### Frontend
-
-```bash
-cd web
-npm run dev
-```
-
-Dev server starts on `http://localhost:5173` with API proxy to backend.
-
-### Docker
-
-```bash
-make docker-up
-```
-
-### Testing
-
-```bash
-# Backend tests
-make test
-
-# Frontend tests
-cd web && npm test
-```
+- Drag-and-drop upload + paste from clipboard
+- Auto-title from filename
+- Thumbnail generation (300px previews)
+- Quick PDF generation (2 clicks)
+- Drag-and-drop reordering with keyboard support
+- Inline metadata editing (title, description)
+- Professional PDF with cover page, figure numbers, headers, footers
+- Report history with search and delete
+- Configurable security: rate limiting, CORS, security headers
 
 ## API
-
-All responses follow the format:
-
-```json
-{ "success": true, "data": {}, "message": "..." }
-```
-
-```json
-{ "success": false, "error": "..." }
-```
 
 ### Health
 
@@ -67,135 +41,86 @@ All responses follow the format:
 GET /health
 ```
 
+Response: `{ "success": true, "data": { "status": "healthy", "version": "1.0.0", "uptime": "5m2s" } }`
+
 ### Uploads
 
-#### Upload files
-
 ```
-POST /api/v1/uploads
-Content-Type: multipart/form-data
-
-files: (binary, PNG/JPG/WEBP, max 10 MB each)
+POST   /api/v1/uploads           # Upload files (multipart, field: "files")
+GET    /api/v1/uploads           # List uploads
+DELETE /api/v1/uploads/{id}      # Delete upload
 ```
 
-Response `201`:
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "abc123",
-      "filename": "abc123.png",
-      "original_name": "screenshot.png",
-      "mime_type": "image/png",
-      "size": 123456,
-      "title": "",
-      "description": "",
-      "order_index": 0,
-      "created_at": "2026-07-01T12:00:00Z"
-    }
-  ]
-}
-```
-
-#### List uploads
-
-```
-GET /api/v1/uploads
-```
-
-#### Delete upload
-
-```
-DELETE /api/v1/uploads/{id}
-```
+Upload response includes `thumbnail_url` for preview.
 
 ### Reports
 
-#### Create report
-
 ```
-POST /api/v1/reports
-Content-Type: application/json
-
-{
-  "title": "Test Report",
-  "project": "SnapReport",
-  "company": "ACME",
-  "author": "John",
-  "version": "1.0",
-  "uploads": [
-    {
-      "id": "abc123",
-      "title": "Login Screen",
-      "description": "The login page with credentials form",
-      "notes": "",
-      "order_index": 0
-    }
-  ]
-}
+GET    /api/v1/reports            # List reports
+POST   /api/v1/reports            # Create report + generate PDF
+GET    /api/v1/reports/{id}       # Get report details + uploads
+GET    /api/v1/reports/{id}/download  # Download PDF
+DELETE /api/v1/reports/{id}       # Delete report
 ```
 
-Response `201`:
+### Response Format
 
 ```json
-{
-  "success": true,
-  "data": {
-    "id": "report-xyz",
-    "title": "Test Report",
-    "project": "SnapReport",
-    "company": "ACME",
-    "author": "John",
-    "version": "1.0",
-    "status": "completed",
-    "pdf_path": "./generated/report-xyz.pdf",
-    "created_at": "2026-07-01T12:00:00Z",
-    "updated_at": "2026-07-01T12:00:00Z"
-  }
-}
+{ "success": true, "data": { ... } }
+{ "success": false, "error": "message" }
 ```
 
-#### Get report
+### Error Codes
 
-```
-GET /api/v1/reports/{id}
-```
+| Code | HTTP | When |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Missing/invalid fields |
+| `NOT_FOUND` | 404 | Resource not found |
+| `PAYLOAD_TOO_LARGE` | 413 | Upload exceeds size limit |
+| `RATE_LIMITED` | 429 | Too many requests |
+| `INTERNAL_ERROR` | 500 | Server error |
 
-Response includes report details and associated uploads.
+## Configuration
 
-#### Download PDF
-
-```
-GET /api/v1/reports/{id}/download
-```
-
-Returns the generated PDF as a binary download.
+| Env | Default | Description |
+|---|---|---|
+| `PORT` | 8080 | Server port |
+| `DATABASE_PATH` | ./data/snapreport.db | SQLite database path |
+| `UPLOAD_DIR` | ./uploads | Uploaded file storage |
+| `PDF_DIR` | ./generated | Generated PDF storage |
+| `MAX_UPLOAD_MB` | 10 | Max file size per upload |
+| `MAX_REQUEST_BODY_MB` | 50 | Max total request body |
+| `ALLOWED_ORIGINS` | * | CORS allowed origins (comma-separated) |
+| `ENVIRONMENT` | development | Runtime environment |
 
 ## Project Structure
 
 ```
-cmd/server/           # Go entry point
+cmd/server/            # Entry point
 internal/
-  api/                # Router
-  config/             # Environment configuration
-  handlers/           # HTTP handlers
-  middleware/         # Logging, CORS
-  models/             # Data models
-  repository/         # SQLite persistence layer
-  services/           # Business logic (upload, report)
-    image/            # Image validation
-    report/           # Report creation + PDF generation
-  pdf/                # HTML template + Chromium PDF generator
-  utils/              # Response helpers, file utilities
-web/                  # React frontend
+  api/                 # Router
+  config/              # Environment configuration
+  fileutil/            # File operations + ID generation
+  handler/             # HTTP handlers
+  imgvalidator/        # Image MIME validation via magic bytes
+  middleware/          # Logging, CORS, rate limiting, security headers
+  model/               # Data models
+  pdf/                 # PDF generation (chromedp + HTML template)
+  repository/          # SQLite persistence
+  response/            # JSON response helpers
+  service/             # Interfaces + sentinel errors
+  services/            # Business logic (upload, thumbnail, report)
+web/
   src/
-    components/       # Reusable UI components
-    pages/            # UploadPage, ReportEditorPage
-    services/         # API client
-    types/            # TypeScript interfaces
-    utils/            # cn() helper
-uploads/              # Temporary uploaded files
-generated/            # Generated PDFs
+    components/        # Reusable UI components
+    pages/             # UploadPage, ReportEditorPage, ReportHistoryPage, ReportDetailPage
+    services/          # Axios API client
+    types/             # TypeScript interfaces
+```
+
+## Testing
+
+```bash
+make test              # Backend tests
+cd web && npm test     # Frontend tests
 ```

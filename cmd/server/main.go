@@ -9,22 +9,23 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/anomalyco/SnapReport/internal/api"
-	"github.com/anomalyco/SnapReport/internal/config"
-	"github.com/anomalyco/SnapReport/internal/handlers"
-	"github.com/anomalyco/SnapReport/internal/pdf"
-	"github.com/anomalyco/SnapReport/internal/repository"
-	reportSvc "github.com/anomalyco/SnapReport/internal/services/report"
-	"github.com/anomalyco/SnapReport/internal/services"
+	"github.com/C9b3rD3vi1/SnapReport/internal/api"
+	"github.com/C9b3rD3vi1/SnapReport/internal/config"
+	"github.com/C9b3rD3vi1/SnapReport/internal/handlers"
+	"github.com/C9b3rD3vi1/SnapReport/internal/middleware"
+	"github.com/C9b3rD3vi1/SnapReport/internal/pdf"
+	"github.com/C9b3rD3vi1/SnapReport/internal/repository"
+	reportSvc "github.com/C9b3rD3vi1/SnapReport/internal/services/report"
+	"github.com/C9b3rD3vi1/SnapReport/internal/services"
+	"github.com/C9b3rD3vi1/SnapReport/internal/service"
 )
 
 func main() {
 	cfg := config.Load()
 
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
+	})))
 
 	db, err := repository.NewSQLite(cfg.DatabasePath)
 	if err != nil {
@@ -38,18 +39,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := os.MkdirAll(cfg.UploadDir, 0755); err != nil {
-		slog.Error("failed to create upload directory", "error", err)
-		os.Exit(1)
+	dirs := []string{cfg.UploadDir, cfg.PDFDir}
+	for _, d := range dirs {
+		if err := os.MkdirAll(d, 0755); err != nil {
+			slog.Error("failed to create directory", "dir", d, "error", err)
+			os.Exit(1)
+		}
 	}
 
-	if err := os.MkdirAll(cfg.PDFDir, 0755); err != nil {
-		slog.Error("failed to create PDF directory", "error", err)
-		os.Exit(1)
-	}
-
-	uploadRepo := repository.NewUploadRepository(db.DB())
-	reportRepo := repository.NewReportRepository(db.DB())
+	var uploadRepo service.UploadRepo = repository.NewUploadRepository(db.DB())
+	var reportRepo service.ReportRepo = repository.NewReportRepository(db.DB())
 
 	uploadSvc := services.NewUploadService(uploadRepo, cfg.UploadDir, cfg.MaxUploadMB)
 
@@ -69,7 +68,8 @@ func main() {
 		Report: reportHandler,
 	}
 
-	router := api.NewRouter(h, cfg.UploadDir)
+	rateLimiter := middleware.NewRateLimiter(100, 1*time.Minute)
+	router := api.NewRouter(h, cfg.UploadDir, cfg.AllowedOrigins, rateLimiter)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -79,19 +79,15 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+
 	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		<-sigCh
-
+		<-shutdown
 		slog.Info("shutting down server...")
-
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-
-		if err := srv.Shutdown(ctx); err != nil {
-			slog.Error("server shutdown failed", "error", err)
-		}
+		srv.Shutdown(ctx)
 	}()
 
 	slog.Info("server starting",

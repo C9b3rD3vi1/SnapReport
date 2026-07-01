@@ -54,7 +54,7 @@ func (s *SQLite) Migrate() error {
 		description TEXT DEFAULT '',
 		notes TEXT DEFAULT '',
 		order_index INTEGER DEFAULT 0,
-		report_id TEXT,
+		report_id TEXT REFERENCES reports(id) ON DELETE CASCADE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
@@ -70,6 +70,10 @@ func (s *SQLite) Migrate() error {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE INDEX IF NOT EXISTS idx_uploads_report_id ON uploads(report_id);
+	CREATE INDEX IF NOT EXISTS idx_uploads_created_at ON uploads(created_at);
+	CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);
 	`
 
 	if _, err := s.db.Exec(schema); err != nil {

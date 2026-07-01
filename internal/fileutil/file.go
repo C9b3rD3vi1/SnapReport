@@ -1,4 +1,4 @@
-package utils
+package fileutil
 
 import (
 	"crypto/rand"
@@ -15,7 +15,7 @@ func GenerateID() string {
 	return hex.EncodeToString(b)
 }
 
-func SaveFile(dir string, filename string, src io.Reader) (string, error) {
+func Save(dir, filename string, src io.Reader) (string, error) {
 	path := filepath.Join(dir, filename)
 	dst, err := os.Create(path)
 	if err != nil {
@@ -26,11 +26,10 @@ func SaveFile(dir string, filename string, src io.Reader) (string, error) {
 	if _, err := io.Copy(dst, src); err != nil {
 		return "", fmt.Errorf("write file: %w", err)
 	}
-
 	return path, nil
 }
 
-func RemoveFile(path string) error {
+func Remove(path string) error {
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove file: %w", err)
 	}

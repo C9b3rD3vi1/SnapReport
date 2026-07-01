@@ -1,4 +1,4 @@
-package image
+package imgvalidator
 
 import (
 	"fmt"
