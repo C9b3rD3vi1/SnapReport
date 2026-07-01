@@ -81,3 +81,68 @@ export async function deleteReport(id: string): Promise<void> {
     throw new Error(res.data.error ?? "Failed to delete report");
   }
 }
+
+export interface ReportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  default_title: string;
+  classification: string;
+  categories: string[];
+  priorities: string[];
+  statuses: string[];
+  default_severity: string;
+}
+
+export async function listTemplates(): Promise<ReportTemplate[]> {
+  const res = await client.get<ApiResponse<ReportTemplate[]>>("/templates");
+  if (!res.data.success || !res.data.data) {
+    throw new Error(res.data.error ?? "Failed to list templates");
+  }
+  return res.data.data;
+}
+
+export async function getTemplate(id: string): Promise<ReportTemplate> {
+  const res = await client.get<ApiResponse<ReportTemplate>>(`/templates/${id}`);
+  if (!res.data.success || !res.data.data) {
+    throw new Error(res.data.error ?? "Failed to get template");
+  }
+  return res.data.data;
+}
+
+import type { Block } from "@/types/block";
+
+export async function getBlocks(reportId: string): Promise<Block[]> {
+  const res = await client.get<ApiResponse<Block[]>>(`/reports/${reportId}/blocks`);
+  if (!res.data.success) throw new Error(res.data.error ?? "Failed to get blocks");
+  return res.data.data ?? [];
+}
+
+export async function createBlock(reportId: string, type: string, content: string, position: number): Promise<Block> {
+  const res = await client.post<ApiResponse<Block>>(`/reports/${reportId}/blocks`, { type, content, position });
+  if (!res.data.success || !res.data.data) throw new Error(res.data.error ?? "Failed to create block");
+  return res.data.data;
+}
+
+export async function updateBlock(reportId: string, blockId: string, updates: Record<string, unknown>): Promise<Block> {
+  const res = await client.patch<ApiResponse<Block>>(`/reports/${reportId}/blocks/${blockId}`, updates);
+  if (!res.data.success || !res.data.data) throw new Error(res.data.error ?? "Failed to update block");
+  return res.data.data;
+}
+
+export async function deleteBlock(reportId: string, blockId: string): Promise<void> {
+  await client.delete(`/reports/${reportId}/blocks/${blockId}`);
+}
+
+export async function reorderBlocks(reportId: string, blockIds: string[]): Promise<void> {
+  const res = await client.post(`/reports/${reportId}/blocks/reorder`, { block_ids: blockIds });
+  if (!res.data.success) throw new Error("Failed to reorder");
+}
+
+export async function previewReport(req: CreateReportRequest): Promise<string> {
+  const res = await client.post("/reports/preview", req, {
+    responseType: "text",
+  });
+  return res.data;
+}

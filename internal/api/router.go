@@ -10,8 +10,10 @@ import (
 )
 
 type Handlers struct {
-	Upload *handlers.UploadHandler
-	Report *handlers.ReportHandler
+	Upload   *handlers.UploadHandler
+	Report   *handlers.ReportHandler
+	Template *handlers.TemplateHandler
+	Block    *handlers.BlockHandler
 }
 
 func NewRouter(h *Handlers, uploadDir string, allowedOrigins []string, rl *middleware.RateLimiter) *chi.Mux {
@@ -40,9 +42,23 @@ func NewRouter(h *Handlers, uploadDir string, allowedOrigins []string, rl *middl
 		r.Route("/reports", func(r chi.Router) {
 			r.Get("/", h.Report.List)
 			r.Post("/", h.Report.Create)
+			r.Post("/preview", h.Report.Preview)
 			r.Get("/{id}", h.Report.Get)
 			r.Get("/{id}/download", h.Report.Download)
 			r.Delete("/{id}", h.Report.Delete)
+
+			r.Route("/{reportID}/blocks", func(r chi.Router) {
+				r.Get("/", h.Block.List)
+				r.Post("/", h.Block.Create)
+				r.Post("/reorder", h.Block.Reorder)
+				r.Patch("/{id}", h.Block.Update)
+				r.Delete("/{id}", h.Block.Delete)
+			})
+		})
+
+		r.Route("/templates", func(r chi.Router) {
+			r.Get("/", h.Template.List)
+			r.Get("/{id}", h.Template.Get)
 		})
 	})
 

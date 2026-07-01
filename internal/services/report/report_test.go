@@ -26,8 +26,9 @@ func setupTest(t *testing.T) *Service {
 
 	reportRepo := repository.NewReportRepository(sqlite.DB())
 	uploadRepo := repository.NewUploadRepository(sqlite.DB())
+	blockRepo := repository.NewBlockRepository(sqlite.DB())
 
-	return NewService(reportRepo, uploadRepo, nil, "")
+	return NewService(reportRepo, uploadRepo, blockRepo, nil, "")
 }
 
 func TestService_CreateMissingTitle(t *testing.T) {

@@ -49,6 +49,7 @@ func main() {
 
 	var uploadRepo service.UploadRepo = repository.NewUploadRepository(db.DB())
 	var reportRepo service.ReportRepo = repository.NewReportRepository(db.DB())
+	blockRepo := repository.NewBlockRepository(db.DB())
 
 	uploadSvc := services.NewUploadService(uploadRepo, cfg.UploadDir, cfg.MaxUploadMB)
 
@@ -58,14 +59,18 @@ func main() {
 		pdfGen = nil
 	}
 
-	reportSvc := reportSvc.NewService(reportRepo, uploadRepo, pdfGen, cfg.PDFDir)
+	reportSvc := reportSvc.NewService(reportRepo, uploadRepo, blockRepo, pdfGen, cfg.PDFDir)
 
 	uploadHandler := handlers.NewUploadHandler(uploadSvc)
 	reportHandler := handlers.NewReportHandler(reportSvc)
+	templateHandler := handlers.NewTemplateHandler()
+	blockHandler := handlers.NewBlockHandler(blockRepo)
 
 	h := &api.Handlers{
-		Upload: uploadHandler,
-		Report: reportHandler,
+		Upload:   uploadHandler,
+		Report:   reportHandler,
+		Template: templateHandler,
+		Block:    blockHandler,
 	}
 
 	rateLimiter := middleware.NewRateLimiter(100, 1*time.Minute)

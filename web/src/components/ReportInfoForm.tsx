@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,11 +34,18 @@ export function ReportInfoForm({ onChange, className }: ReportInfoFormProps) {
     },
   });
 
-  const values = watch();
+  const prevRef = useRef("");
 
   useEffect(() => {
-    onChange(values);
-  }, [values, onChange]);
+    const sub = watch((values) => {
+      const json = JSON.stringify(values);
+      if (json !== prevRef.current) {
+        prevRef.current = json;
+        onChange(values as ReportInfo);
+      }
+    });
+    return () => sub.unsubscribe();
+  }, [watch, onChange]);
 
   return (
     <div className={cn("space-y-4", className)}>

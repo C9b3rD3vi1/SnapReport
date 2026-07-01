@@ -19,6 +19,28 @@ import (
 //go:embed report.html
 var templateContent string
 
+type BlockData struct {
+	Type           string // finding, note, warning, tip, important, divider, checklist, statistics
+	FindingTitle   string
+	FindingDesc    string
+	FindingImage   string
+	Category       string
+	Priority       string
+	Severity       string
+	Status         string
+	Recommendation string
+	NoteContent    string
+	MessageText    string
+	DividerTitle   string
+	ChecklistItems []ChecklistItemData
+	RenderedHTML   string // Pre-rendered HTML for template insertion
+}
+
+type ChecklistItemData struct {
+	Text    string
+	Checked bool
+}
+
 type ReportData struct {
 	Title          string
 	Project        string
@@ -31,6 +53,7 @@ type ReportData struct {
 	Status         string
 	Watermark      string
 
+	Blocks      []BlockData
 	Screenshots []ScreenshotData
 	Summary     SummaryData
 }
@@ -80,7 +103,25 @@ func NewGenerator() (*Generator, error) {
 	}, nil
 }
 
+func (g *Generator) preRenderBlocks(data *ReportData) {
+	ctx := RenderContext{Summary: data.Summary}
+	for i := range data.Blocks {
+		data.Blocks[i].RenderedHTML = RenderBlock(data.Blocks[i], ctx)
+	}
+}
+
+func (g *Generator) RenderHTML(data ReportData) (string, error) {
+	g.preRenderBlocks(&data)
+	var buf strings.Builder
+	if err := g.tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("execute template: %w", err)
+	}
+	return buf.String(), nil
+}
+
 func (g *Generator) Generate(data ReportData, outputPath string) error {
+	g.preRenderBlocks(&data)
+
 	tempDir, err := os.MkdirTemp("", "snapreport-*")
 	if err != nil {
 		return fmt.Errorf("create temp directory: %w", err)

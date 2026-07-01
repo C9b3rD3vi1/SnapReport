@@ -1,6 +1,7 @@
 package report
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -9,20 +10,23 @@ import (
 	"github.com/C9b3rD3vi1/SnapReport/internal/fileutil"
 	"github.com/C9b3rD3vi1/SnapReport/internal/models"
 	"github.com/C9b3rD3vi1/SnapReport/internal/pdf"
+	"github.com/C9b3rD3vi1/SnapReport/internal/repository"
 	"github.com/C9b3rD3vi1/SnapReport/internal/service"
 )
 
 type Service struct {
 	reportRepo service.ReportRepo
 	uploadRepo service.UploadRepo
+	blockRepo  *repository.BlockRepository
 	pdfGen     *pdf.Generator
 	pdfDir     string
 }
 
-func NewService(reportRepo service.ReportRepo, uploadRepo service.UploadRepo, pdfGen *pdf.Generator, pdfDir string) *Service {
+func NewService(reportRepo service.ReportRepo, uploadRepo service.UploadRepo, blockRepo *repository.BlockRepository, pdfGen *pdf.Generator, pdfDir string) *Service {
 	return &Service{
 		reportRepo: reportRepo,
 		uploadRepo: uploadRepo,
+		blockRepo:  blockRepo,
 		pdfGen:     pdfGen,
 		pdfDir:     pdfDir,
 	}
@@ -105,6 +109,77 @@ func (s *Service) Create(req CreateRequest) (*models.Report, error) {
 	return report, nil
 }
 
+func (s *Service) PreviewHTML(req CreateRequest) (string, error) {
+	uploads, err := s.uploadRepo.FindAll()
+	if err != nil {
+		return "", fmt.Errorf("fetch uploads: %w", err)
+	}
+
+	uploadMap := map[string]models.Upload{}
+	for _, u := range uploads {
+		uploadMap[u.ID] = u
+	}
+
+	var screenshots []pdf.ScreenshotData
+	for i, u := range req.Uploads {
+		up, ok := uploadMap[u.ID]
+		if !ok {
+			continue
+		}
+		title := u.Title
+		if title == "" {
+			title = fmt.Sprintf("Finding %d", i+1)
+		}
+		screenshots = append(screenshots, pdf.ScreenshotData{
+			ImagePath:      "/uploads/" + up.Filename,
+			Title:          title,
+			Description:    u.Description,
+			FigureLabel:    fmt.Sprintf("Figure %d", i+1),
+			Category:       u.Category,
+			Priority:       u.Priority,
+			Severity:       u.Severity,
+			Status:         u.Status,
+			Recommendation: u.Recommendation,
+		})
+	}
+
+	data := pdf.ReportData{
+		Title:          req.Title,
+		Project:        req.Project,
+		Company:        req.Company,
+		Author:         req.Author,
+		Version:        req.Version,
+		Date:           time.Now().Format("January 2, 2006"),
+		Classification: "Internal",
+		ReportID:       "PREVIEW",
+		Status:         "draft",
+		Watermark:      "PREVIEW",
+		Screenshots:    screenshots,
+		Summary: pdf.SummaryData{
+			TotalFindings:      len(screenshots),
+			TotalImages:        len(screenshots),
+			HasRecommendations: false,
+			ReadingTime:        fmt.Sprintf("%d min", max(1, (len(screenshots)+2)/2)),
+		},
+	}
+
+	for _, u := range req.Uploads {
+		switch u.Priority {
+		case "High", "Critical":
+			data.Summary.HighCount++
+		case "Medium":
+			data.Summary.MediumCount++
+		case "Low":
+			data.Summary.LowCount++
+		}
+	}
+
+	if s.pdfGen != nil {
+		return s.pdfGen.RenderHTML(data)
+	}
+	return "", fmt.Errorf("pdf generator not available")
+}
+
 func (s *Service) generatePDF(report *models.Report, uploads []models.Upload) error {
 	high, med, low := 0, 0, 0
 	catSet := map[string]bool{}
@@ -138,6 +213,16 @@ func (s *Service) generatePDF(report *models.Report, uploads []models.Upload) er
 	totalFindings := len(uploads)
 	readingTime := fmt.Sprintf("%d min", max(1, (totalFindings+2)/2))
 
+	blocks, _ := s.blockRepo.FindByReportID(report.ID)
+	umap := map[string]models.Upload{}
+	for _, u := range uploads {
+		umap[u.ID] = u
+	}
+	var pdfBlocks []pdf.BlockData
+	for _, b := range blocks {
+		pdfBlocks = append(pdfBlocks, blockToPDF(b, umap))
+	}
+
 	data := pdf.ReportData{
 		Title:          report.Title,
 		Project:        report.Project,
@@ -149,6 +234,7 @@ func (s *Service) generatePDF(report *models.Report, uploads []models.Upload) er
 		ReportID:       report.ID[:8],
 		Status:         report.Status,
 		Watermark:      "",
+		Blocks:         pdfBlocks,
 		Summary: pdf.SummaryData{
 			TotalFindings:      totalFindings,
 			TotalImages:        totalFindings,
@@ -218,6 +304,64 @@ func (s *Service) Delete(id string) error {
 		fileutil.Remove(report.PDFPath)
 	}
 	return s.reportRepo.Delete(id)
+}
+
+func blockToPDF(b models.Block, uploadMap map[string]models.Upload) pdf.BlockData {
+	pb := pdf.BlockData{Type: string(b.Type)}
+
+	switch b.Type {
+	case models.BlockFinding:
+		var c struct {
+			ScreenshotID   string `json:"screenshot_id"`
+			Title          string `json:"title"`
+			Description    string `json:"description"`
+			Category       string `json:"category"`
+			Priority       string `json:"priority"`
+			Severity       string `json:"severity"`
+			Status         string `json:"status"`
+			Recommendation string `json:"recommendation"`
+		}
+		json.Unmarshal([]byte(b.Content), &c)
+		pb.FindingTitle = c.Title
+		pb.FindingDesc = c.Description
+		pb.Category = c.Category
+		pb.Priority = c.Priority
+		pb.Severity = c.Severity
+		pb.Status = c.Status
+		pb.Recommendation = c.Recommendation
+		if up, ok := uploadMap[c.ScreenshotID]; ok {
+			pb.FindingImage = up.Path
+		}
+
+	case models.BlockNote:
+		var c struct{ HTML string `json:"html"` }
+		json.Unmarshal([]byte(b.Content), &c)
+		pb.NoteContent = c.HTML
+
+	case models.BlockWarning, models.BlockTip, models.BlockImportant:
+		var c struct{ Text string `json:"text"` }
+		json.Unmarshal([]byte(b.Content), &c)
+		pb.MessageText = c.Text
+
+	case models.BlockDivider:
+		var c struct{ Title string `json:"title"` }
+		json.Unmarshal([]byte(b.Content), &c)
+		pb.DividerTitle = c.Title
+
+	case models.BlockChecklist:
+		var c struct {
+			Items []struct {
+				Text    string `json:"text"`
+				Checked bool   `json:"checked"`
+			} `json:"items"`
+		}
+		json.Unmarshal([]byte(b.Content), &c)
+		for _, item := range c.Items {
+			pb.ChecklistItems = append(pb.ChecklistItems, pdf.ChecklistItemData{Text: item.Text, Checked: item.Checked})
+		}
+	}
+
+	return pb
 }
 
 func (s *Service) Get(id string) (*models.Report, []models.Upload, error) {

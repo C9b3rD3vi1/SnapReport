@@ -79,10 +79,35 @@ func (s *SQLite) Migrate() error {
 	CREATE INDEX IF NOT EXISTS idx_uploads_report_id ON uploads(report_id);
 	CREATE INDEX IF NOT EXISTS idx_uploads_created_at ON uploads(created_at);
 	CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at);
+
+	CREATE TABLE IF NOT EXISTS blocks (
+		id TEXT PRIMARY KEY,
+		report_id TEXT NOT NULL REFERENCES reports(id) ON DELETE CASCADE,
+		type TEXT NOT NULL,
+		position INTEGER NOT NULL DEFAULT 0,
+		content TEXT NOT NULL DEFAULT '{}',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_blocks_report_id ON blocks(report_id);
+	CREATE INDEX IF NOT EXISTS idx_blocks_position ON blocks(report_id, position);
 	`
 
 	if _, err := s.db.Exec(schema); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
+	}
+
+	migrations := []string{
+		`ALTER TABLE uploads ADD COLUMN category TEXT DEFAULT ''`,
+		`ALTER TABLE uploads ADD COLUMN priority TEXT DEFAULT ''`,
+		`ALTER TABLE uploads ADD COLUMN severity TEXT DEFAULT ''`,
+		`ALTER TABLE uploads ADD COLUMN status TEXT DEFAULT ''`,
+		`ALTER TABLE uploads ADD COLUMN recommendation TEXT DEFAULT ''`,
+		`ALTER TABLE reports ADD COLUMN template_id TEXT DEFAULT ''`,
+	}
+	for _, m := range migrations {
+		s.db.Exec(m)
 	}
 
 	slog.Info("database migrations completed")

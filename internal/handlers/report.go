@@ -100,6 +100,27 @@ func (h *ReportHandler) Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *ReportHandler) Preview(w http.ResponseWriter, r *http.Request) {
+	var req report.CreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w, "Invalid request body")
+		return
+	}
+	if req.Title == "" {
+		response.BadRequest(w, "Report title is required")
+		return
+	}
+
+	html, err := h.service.PreviewHTML(req)
+	if err != nil {
+		response.InternalError(w, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(html))
+}
+
 func (h *ReportHandler) Download(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if id == "" {
